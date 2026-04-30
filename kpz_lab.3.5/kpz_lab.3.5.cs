@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Collections;
 
 namespace Lab3_Composite
 {
@@ -14,10 +15,8 @@ namespace Lab3_Composite
             table.AddClass("data-table");
 
             var tr = new LightElementNode("tr", "block", "double");
-
             var th1 = new LightElementNode("th", "inline", "double");
             th1.AddChild(new LightTextNode("Назва"));
-
             var th2 = new LightElementNode("th", "inline", "double");
             th2.AddChild(new LightTextNode("Ціна"));
 
@@ -28,7 +27,6 @@ namespace Lab3_Composite
             var row = new LightElementNode("tr", "block", "double");
             var td1 = new LightElementNode("td", "inline", "double");
             td1.AddChild(new LightTextNode("Яблуко"));
-
             var td2 = new LightElementNode("td", "inline", "double");
             td2.AddChild(new LightTextNode("30 грн"));
 
@@ -36,41 +34,109 @@ namespace Lab3_Composite
             row.AddChild(td2);
             table.AddChild(row);
 
-            var img = new LightElementNode("img", "inline", "single");
-            img.AddClass("product-image");
-            table.AddChild(img);
+            Console.WriteLine("--- Command Pattern ---");
+            var command = new AddClassCommand(table, "interactive-table");
+            command.Execute();
 
-            Console.WriteLine("Демонстрація OuterHTML ");
-            Console.WriteLine(table.OuterHTML());
+            Console.WriteLine("\n--- State Pattern ---");
+            row.SetState(new HiddenState());
+            Console.WriteLine("Рядок з 'Яблуком' тепер прихований через State.");
 
-            Console.WriteLine("\nДемонстрація InnerHTML ");
-            Console.WriteLine(table.InnerHTML());
+            Console.WriteLine("\n--- Render ---");
+            Console.WriteLine(table.Render());
+
+            Console.WriteLine("\n--- Iterator Pattern ---");
+            foreach (var node in table)
+            {
+                Console.WriteLine("Вузол знайдено");
+            }
+
+            Console.WriteLine("\n--- Visitor Pattern ---");
+            var visitor = new ElementCounterVisitor();
+            table.Accept(visitor);
+            Console.WriteLine($"Кількість тегів: {visitor.Count}");
 
             Console.ReadKey();
         }
     }
 
+    public interface IVisitor
+    {
+        void VisitTextNode(LightTextNode node);
+        void VisitElementNode(LightElementNode node);
+    }
+
+    public class ElementCounterVisitor : IVisitor
+    {
+        public int Count { get; private set; }
+        public void VisitTextNode(LightTextNode node) { }
+        public void VisitElementNode(LightElementNode node) => Count++;
+    }
+
+    public interface INodeState
+    {
+        bool IsVisible();
+    }
+
+    public class VisibleState : INodeState
+    {
+        public bool IsVisible() => true;
+    }
+
+    public class HiddenState : INodeState
+    {
+        public bool IsVisible() => false;
+    }
+
+    public interface ICommand
+    {
+        void Execute();
+    }
+
+    public class AddClassCommand : ICommand
+    {
+        private LightElementNode _node;
+        private string _className;
+        public AddClassCommand(LightElementNode node, string className)
+        {
+            _node = node;
+            _className = className;
+        }
+        public void Execute() => _node.AddClass(_className);
+    }
+
     public abstract class LightNode
     {
-        public abstract string OuterHTML();
-        public abstract string InnerHTML();
+        public string Render()
+        {
+            OnBeforeRender();
+            string result = ExecuteRender();
+            OnAfterRender();
+            return result;
+        }
+
+        protected abstract string ExecuteRender();
+        protected virtual void OnBeforeRender() { }
+        protected virtual void OnAfterRender() { }
+        public abstract void Accept(IVisitor visitor);
     }
 
     public class LightTextNode : LightNode
     {
         private string _text;
         public LightTextNode(string text) => _text = text;
-        public override string OuterHTML() => _text;
-        public override string InnerHTML() => _text;
+        protected override string ExecuteRender() => _text;
+        public override void Accept(IVisitor visitor) => visitor.VisitTextNode(this);
     }
 
-    public class LightElementNode : LightNode
+    public class LightElementNode : LightNode, IEnumerable<LightNode>
     {
         private string _tagName;
         private string _displayType;
         private string _closingType;
         private List<string> _classes = new List<string>();
         private List<LightNode> _children = new List<LightNode>();
+        private INodeState _state = new VisibleState();
 
         public LightElementNode(string tag, string display, string closing)
         {
@@ -81,26 +147,17 @@ namespace Lab3_Composite
 
         public void AddClass(string className) => _classes.Add(className);
         public void AddChild(LightNode node) => _children.Add(node);
+        public void SetState(INodeState state) => _state = state;
 
-        public override string InnerHTML()
+        protected override string ExecuteRender()
         {
-            StringBuilder sb = new StringBuilder();
-            foreach (var child in _children)
-            {
-                sb.Append(child.OuterHTML());
-            }
-            return sb.ToString();
-        }
+            if (!_state.IsVisible()) return string.Empty;
 
-        public override string OuterHTML()
-        {
             StringBuilder sb = new StringBuilder();
             sb.Append($"<{_tagName}");
 
             if (_classes.Count > 0)
-            {
                 sb.Append($" class=\"{string.Join(" ", _classes)}\"");
-            }
 
             if (_closingType == "single")
             {
@@ -109,11 +166,34 @@ namespace Lab3_Composite
             else
             {
                 sb.Append(">");
-                sb.Append(InnerHTML());
+                foreach (var child in _children)
+                    sb.Append(child.Render());
                 sb.Append($"</{_tagName}>");
             }
 
             return sb.ToString();
         }
+
+        public override void Accept(IVisitor visitor)
+        {
+            visitor.VisitElementNode(this);
+            foreach (var child in _children)
+                child.Accept(visitor);
+        }
+
+        public IEnumerator<LightNode> GetEnumerator()
+        {
+            yield return this;
+            foreach (var child in _children)
+            {
+                if (child is LightElementNode element)
+                {
+                    foreach (var sub in element) yield return sub;
+                }
+                else yield return child;
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
