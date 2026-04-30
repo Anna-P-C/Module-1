@@ -14,10 +14,8 @@ namespace Lab3_Composite
             table.AddClass("data-table");
 
             var tr = new LightElementNode("tr", "block", "double");
-
             var th1 = new LightElementNode("th", "inline", "double");
             th1.AddChild(new LightTextNode("Назва"));
-
             var th2 = new LightElementNode("th", "inline", "double");
             th2.AddChild(new LightTextNode("Ціна"));
 
@@ -28,7 +26,6 @@ namespace Lab3_Composite
             var row = new LightElementNode("tr", "block", "double");
             var td1 = new LightElementNode("td", "inline", "double");
             td1.AddChild(new LightTextNode("Яблуко"));
-
             var td2 = new LightElementNode("td", "inline", "double");
             td2.AddChild(new LightTextNode("30 грн"));
 
@@ -36,15 +33,8 @@ namespace Lab3_Composite
             row.AddChild(td2);
             table.AddChild(row);
 
-            var img = new LightElementNode("img", "inline", "single");
-            img.AddClass("product-image");
-            table.AddChild(img);
-
-            Console.WriteLine("Демонстрація OuterHTML ");
-            Console.WriteLine(table.OuterHTML());
-
-            Console.WriteLine("\nДемонстрація InnerHTML ");
-            Console.WriteLine(table.InnerHTML());
+            Console.WriteLine("Демонстрація Render (Template Method):");
+            Console.WriteLine(table.Render());
 
             Console.ReadKey();
         }
@@ -52,16 +42,30 @@ namespace Lab3_Composite
 
     public abstract class LightNode
     {
-        public abstract string OuterHTML();
-        public abstract string InnerHTML();
+        public string Render()
+        {
+            OnBeforeRender();
+            string html = ExecuteRender();
+            OnAfterRender();
+            return html;
+        }
+
+        protected abstract string ExecuteRender();
+        protected virtual void OnBeforeRender() { }
+        protected virtual void OnAfterRender() { }
     }
 
     public class LightTextNode : LightNode
     {
         private string _text;
         public LightTextNode(string text) => _text = text;
-        public override string OuterHTML() => _text;
-        public override string InnerHTML() => _text;
+
+        protected override string ExecuteRender() => _text;
+
+        protected override void OnBeforeRender()
+        {
+            Console.WriteLine("LOG: Рендеринг тексту...");
+        }
     }
 
     public class LightElementNode : LightNode
@@ -77,22 +81,18 @@ namespace Lab3_Composite
             _tagName = tag;
             _displayType = display;
             _closingType = closing;
+            Console.WriteLine($"LOG: Об'єкт <{_tagName}> створено");
         }
 
         public void AddClass(string className) => _classes.Add(className);
         public void AddChild(LightNode node) => _children.Add(node);
 
-        public override string InnerHTML()
+        protected override void OnBeforeRender()
         {
-            StringBuilder sb = new StringBuilder();
-            foreach (var child in _children)
-            {
-                sb.Append(child.OuterHTML());
-            }
-            return sb.ToString();
+            Console.WriteLine($"LOG: Початок рендеру тега <{_tagName}>");
         }
 
-        public override string OuterHTML()
+        protected override string ExecuteRender()
         {
             StringBuilder sb = new StringBuilder();
             sb.Append($"<{_tagName}");
@@ -109,7 +109,10 @@ namespace Lab3_Composite
             else
             {
                 sb.Append(">");
-                sb.Append(InnerHTML());
+                foreach (var child in _children)
+                {
+                    sb.Append(child.Render());
+                }
                 sb.Append($"</{_tagName}>");
             }
 
