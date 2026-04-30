@@ -106,6 +106,19 @@ namespace Lab3_Composite
         public void Execute() => _node.AddClass(_className);
     }
 
+    public interface IVisitor
+    {
+        void VisitTextNode(LightTextNode node);
+        void VisitElementNode(LightElementNode node);
+    }
+
+    public class ElementCounterVisitor : IVisitor
+    {
+        public int Count { get; private set; }
+        public void VisitTextNode(LightTextNode node) { }
+        public void VisitElementNode(LightElementNode node) => Count++;
+    }
+
     public abstract class LightNode
     {
         public string Render()
