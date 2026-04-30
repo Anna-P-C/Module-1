@@ -12,7 +12,8 @@ namespace Lab3_Composite
             Console.OutputEncoding = Encoding.UTF8;
 
             var table = new LightElementNode("table", "block", "double");
-            table.AddClass("data-table");
+            var row1 = new LightElementNode("tr", "block", "double");
+            row1.AddChild(new LightTextNode("Видимий рядок"));
 
             var tr = new LightElementNode("tr", "block", "double");
             var th1 = new LightElementNode("th", "inline", "double");
@@ -20,9 +21,8 @@ namespace Lab3_Composite
             var th2 = new LightElementNode("th", "inline", "double");
             th2.AddChild(new LightTextNode("Ціна"));
 
-            tr.AddChild(th1);
-            tr.AddChild(th2);
-            table.AddChild(tr);
+       
+            row2.SetState(new HiddenState());
 
             var row = new LightElementNode("tr", "block", "double");
             var td1 = new LightElementNode("td", "inline", "double");
@@ -56,8 +56,9 @@ namespace Lab3_Composite
             table.Accept(visitor);
             Console.WriteLine($"Кількість тегів: {visitor.Count}");
 
-            Console.ReadKey();
-        }
+    public class HiddenState : INodeState
+    {
+        public bool IsVisible() => false;
     }
 
     public interface IVisitor
@@ -132,20 +133,17 @@ namespace Lab3_Composite
     public class LightElementNode : LightNode, IEnumerable<LightNode>
     {
         private string _tagName;
-        private string _displayType;
-        private string _closingType;
-        private List<string> _classes = new List<string>();
         private List<LightNode> _children = new List<LightNode>();
+        private INodeState _state = new VisibleState();
+
+       
         private INodeState _state = new VisibleState();
 
         public LightElementNode(string tag, string display, string closing)
         {
             _tagName = tag;
-            _displayType = display;
-            _closingType = closing;
         }
 
-        public void AddClass(string className) => _classes.Add(className);
         public void AddChild(LightNode node) => _children.Add(node);
         public void SetState(INodeState state) => _state = state;
 
@@ -171,6 +169,10 @@ namespace Lab3_Composite
                 sb.Append($"</{_tagName}>");
             }
 
+            StringBuilder sb = new StringBuilder();
+            sb.Append($"<{_tagName}>");
+            foreach (var child in _children) sb.Append(child.Render());
+            sb.Append($"</{_tagName}>");
             return sb.ToString();
         }
 
