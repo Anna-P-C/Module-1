@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Text;
+using System.Collections;
 
 namespace Lab3_Composite
 {
@@ -33,8 +34,14 @@ namespace Lab3_Composite
             row.AddChild(td2);
             table.AddChild(row);
 
-            Console.WriteLine("Демонстрація Render (Template Method):");
+            Console.WriteLine("--- Перевірка Render ---");
             Console.WriteLine(table.Render());
+
+            Console.WriteLine("\n--- Перевірка Ітератора (Обхід дерева) ---");
+            foreach (var node in table)
+            {
+                Console.WriteLine("Знайдено вузол у дереві HTML");
+            }
 
             Console.ReadKey();
         }
@@ -59,16 +66,10 @@ namespace Lab3_Composite
     {
         private string _text;
         public LightTextNode(string text) => _text = text;
-
         protected override string ExecuteRender() => _text;
-
-        protected override void OnBeforeRender()
-        {
-            Console.WriteLine("LOG: Рендеринг тексту...");
-        }
     }
 
-    public class LightElementNode : LightNode
+    public class LightElementNode : LightNode, IEnumerable<LightNode>
     {
         private string _tagName;
         private string _displayType;
@@ -81,16 +82,10 @@ namespace Lab3_Composite
             _tagName = tag;
             _displayType = display;
             _closingType = closing;
-            Console.WriteLine($"LOG: Об'єкт <{_tagName}> створено");
         }
 
         public void AddClass(string className) => _classes.Add(className);
         public void AddChild(LightNode node) => _children.Add(node);
-
-        protected override void OnBeforeRender()
-        {
-            Console.WriteLine($"LOG: Початок рендеру тега <{_tagName}>");
-        }
 
         protected override string ExecuteRender()
         {
@@ -118,5 +113,26 @@ namespace Lab3_Composite
 
             return sb.ToString();
         }
+
+        public IEnumerator<LightNode> GetEnumerator()
+        {
+            yield return this;
+            foreach (var child in _children)
+            {
+                if (child is LightElementNode element)
+                {
+                    foreach (var subChild in element)
+                    {
+                        yield return subChild;
+                    }
+                }
+                else
+                {
+                    yield return child;
+                }
+            }
+        }
+
+        IEnumerator IEnumerable.GetEnumerator() => GetEnumerator();
     }
 }
